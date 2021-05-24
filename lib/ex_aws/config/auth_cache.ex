@@ -81,14 +81,21 @@ defmodule ExAws.Config.AuthCache do
   end
 
   defp refresh_auth_if_required([], config) do
-    GenServer.call(__MODULE__, {:refresh_auth, config}, 30_000)
+    try do
+      # Instead of 30s timeout, I will just simply increase it to 5m
+      GenServer.call(__MODULE__, {:refresh_auth, config}, 300_000)
+    after
+      :timer.sleep(30_000)
+      get(config)
+    end
   end
 
   defp refresh_auth_if_required([{_key, cached_auth}], config) do
     if next_refresh_in(cached_auth) > 0 do
       cached_auth
     else
-      GenServer.call(__MODULE__, {:refresh_auth, config}, 30_000)
+      # GenServer.call(__MODULE__, {:refresh_auth, config}, 300_000)
+      refresh_auth_if_required([], config)
     end
   end
 
