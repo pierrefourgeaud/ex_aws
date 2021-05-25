@@ -44,7 +44,7 @@ defmodule ExAws.Config.AuthCache do
   end
 
   def handle_call({:refresh_auth, config}, _from, ets) do
-    try
+    try do
       auth = refresh_auth(config, ets)
       {:reply, auth, ets}
     rescue # rescue if timeout
