@@ -3,7 +3,7 @@ defmodule ExAws.Config.AuthCache do
 
   use GenServer
 
-  require Logger
+  # require Logger
 
   # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
 
@@ -48,11 +48,12 @@ defmodule ExAws.Config.AuthCache do
       auth = refresh_auth(config, ets)
       {:reply, auth, ets}
     rescue # rescue if timeout
-      Logger.error("Caught error for refresh auth, trying again in 2 minutes")
-      :timer.sleep(120_000) # sleep for 2 minutes
-      Logger.error("Trying...")
-      auth = refresh_auth(config, ets)
-      {:reply, auth, ets}
+      _ ->
+        # Logger.error("Caught error for refresh auth, trying again in 2 minutes")
+        :timer.sleep(120_000) # sleep for 2 minutes
+        # Logger.error("Trying...")
+        auth = refresh_auth(config, ets)
+        {:reply, auth, ets}
     end
   end
 
@@ -62,8 +63,19 @@ defmodule ExAws.Config.AuthCache do
   end
 
   def handle_info({:refresh_auth, config}, ets) do
-    refresh_auth(config, ets)
-    {:noreply, ets}
+    # refresh_auth(config, ets)
+    # {:noreply, ets}
+    try do
+      refresh_auth(config, ets)
+      {:noreply, ets}
+    rescue # rescue if timeout
+      _ ->
+        # Logger.error("Caught error for refresh auth INFO, trying again in 2 minutes")
+        :timer.sleep(120_000) # sleep for 2 minutes
+        # Logger.error("Trying...")
+        refresh_auth(config, ets)
+        {:noreply, ets}
+    end
   end
 
   def handle_info({:refresh_awscli_config, profile, expiration}, ets) do
@@ -94,9 +106,11 @@ defmodule ExAws.Config.AuthCache do
     try do
       # Instead of 30s timeout, I will just simply increase it to 5m
       GenServer.call(__MODULE__, {:refresh_auth, config}, 300_000)
-    rescue # rescue if timeout
-      :timer.sleep(30_000)
-      get(config)
+    catch # rescue if timeout
+      :exit, value ->
+        # Logger.error("Caught the timeout with #{inspect(value)}... Retrying now")
+        :timer.sleep(30_000)
+        get(config)
     end
   end
 
